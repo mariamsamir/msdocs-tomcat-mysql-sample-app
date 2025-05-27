@@ -1,0 +1,26 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+    commands:
+      - echo Maven already installed in the Java runtime environment.
+      # - apt-get update && apt-get install -y maven
+  pre_build:
+    commands:
+      - echo Logging into AWS...
+      - aws sts get-caller-identity
+  build:
+    commands:
+      - echo Building Java app...
+      - mvn clean package
+  post_build:
+    commands:
+      - echo Uploading war to S3...
+      - aws s3 cp target/*.war s3://$ARTIFACT_BUCKET/ROOT.war
+artifacts:
+  files:
+    - infrastructure.yml
+    - target/*.war
+  discard-paths: yes
