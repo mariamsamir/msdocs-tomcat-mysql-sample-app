@@ -12,6 +12,31 @@ Parameters:
 
 Resources:
 
+  GitHubSourceActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GitHubSourceActionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GitHubSourcePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+                Resource: "*"
+
+
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

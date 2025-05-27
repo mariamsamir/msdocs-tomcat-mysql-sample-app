@@ -116,6 +116,7 @@ Resources:
                 Repo: !Ref GitHubRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
+              RoleArn: !GetAtt GitHubSourceActionRole.Arn
         - Name: Build
           Actions:
             - Name: JavaBuild
