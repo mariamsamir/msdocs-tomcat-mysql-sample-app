@@ -29,30 +29,30 @@ Parameters:
 
 Resources:
 
-  ### IAM Roles ###
-  GitHubSourceActionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: GitHubSourceActionRole
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codepipeline.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: GitHubSourcePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:GetObjectVersion
-                  - s3:GetBucketVersioning
-                Resource: "*"
+#  ### IAM Roles ###
+#  GitHubSourceActionRole:
+#    Type: AWS::IAM::Role
+#    Properties:
+#      RoleName: GitHubSourceActionRole
+#      AssumeRolePolicyDocument:
+#        Version: '2012-10-17'
+#        Statement:
+#          - Effect: Allow
+#            Principal:
+#              Service: codepipeline.amazonaws.com
+#            Action: sts:AssumeRole
+#      Policies:
+#        - PolicyName: GitHubSourcePolicy
+#          PolicyDocument:
+#            Version: '2012-10-17'
+#            Statement:
+#              - Effect: Allow
+#                Action:
+#                  - s3:GetObject
+#                  - s3:PutObject
+#                  - s3:GetObjectVersion
+#                  - s3:GetBucketVersioning
+#                Resource: "*"
 
   CodePipelineRole:
     Type: AWS::IAM::Role
@@ -61,7 +61,9 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: codepipeline.amazonaws.com
+              Service:
+                - codepipeline.amazonaws.com
+                - codedeploy.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: CodePipelinePolicy
@@ -74,6 +76,8 @@ Resources:
                   - cloudformation:*
                   - iam:PassRole
                   - sts:AssumeRole
+                  - codedeploy:*
+                  - ec2:*
                 Resource: "*"
 
   CodeBuildRole:
@@ -140,7 +144,6 @@ Resources:
                 Repo: !Ref GitHubRepo
                 Branch: !Ref GitHubBranch
                 OAuthToken: !Ref GitHubToken
-              RoleArn: !GetAtt GitHubSourceActionRole.Arn
         - Name: Build
           Actions:
             - Name: JavaBuild
@@ -183,3 +186,4 @@ Outputs:
 
   BuildProjectName:
     Value: !Ref JavaAppBuild
+
