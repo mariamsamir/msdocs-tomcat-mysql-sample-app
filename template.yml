@@ -168,11 +168,13 @@ Resources:
                 Version: 1
               InputArtifacts:
                 - Name: BuildOutput
+              RoleArn: !GetAtt CodePipelineRole.Arn
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: JavaAppStack
                 TemplatePath: BuildOutput::infrastructure.yml
                 Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CodePipelineRole.Arn
                 ParameterOverrides: !Sub |
                   {
                     "KeyName": "${KeyName}",
