@@ -57,12 +57,10 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
-              Service:
-                - codepipeline.amazonaws.com
+              Service: codepipeline.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: CodePipelinePolicy
@@ -74,15 +72,12 @@ Resources:
                   - s3:*
                   - cloudformation:*
                   - iam:PassRole
-                  - sts:AssumeRole
-                  - ec2:*
                 Resource: "*"
 
   CodeBuildRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -98,6 +93,28 @@ Resources:
                   - logs:*
                 Resource: "*"
 
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeDeployPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:Describe*
+                  - s3:Get*
+                  - codedeploy:*
+                  - cloudwatch:*
+                Resource: "*"
   ### CodeBuild Project ###
 
   JavaAppBuild:
@@ -167,13 +184,13 @@ Resources:
                 Version: 1
               InputArtifacts:
                 - Name: BuildOutput
-              RoleArn: !GetAtt CodePipelineRole.Arn
+#              RoleArn: !GetAtt CodeDeployServiceRole.Arn
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: JavaAppStack
                 TemplatePath: BuildOutput::infrastructure.yml
                 Capabilities: CAPABILITY_NAMED_IAM
-                RoleArn: !GetAtt CodePipelineRole.Arn
+                RoleArn: !GetAtt CodeDeployServiceRole.Arn
                 ParameterOverrides: !Sub |
                   {
                     "KeyName": "${KeyName}",
