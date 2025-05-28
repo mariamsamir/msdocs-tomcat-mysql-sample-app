@@ -75,6 +75,7 @@ Resources:
                   - cloudformation:*
                   - iam:PassRole
                   - sts:AssumeRole
+                  - ec2:*
                 Resource: "*"
 
   CodeBuildRole:
