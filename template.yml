@@ -63,7 +63,6 @@ Resources:
             Principal:
               Service:
                 - codepipeline.amazonaws.com
-                - codedeploy.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: CodePipelinePolicy
@@ -76,8 +75,6 @@ Resources:
                   - cloudformation:*
                   - iam:PassRole
                   - sts:AssumeRole
-                  - codedeploy:*
-                  - ec2:*
                 Resource: "*"
 
   CodeBuildRole:
