@@ -28,7 +28,6 @@ Parameters:
     Description: S3 bucket to store build artifacts
 
 Resources:
-
 #  ### IAM Roles ###
 #  GitHubSourceActionRole:
 #    Type: AWS::IAM::Role
@@ -58,6 +57,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -82,6 +82,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
