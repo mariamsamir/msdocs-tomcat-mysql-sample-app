@@ -132,6 +132,8 @@ Resources:
                   - 'tag:GetTags'
                   - 'tag:GetResources'
                   - 'sns:Publish'
+                  - 'iam:CreateRole'
+                  - 'iam:PutRolePolicy'
                 Resource: "*"
   ### CodeBuild Project ###
 
