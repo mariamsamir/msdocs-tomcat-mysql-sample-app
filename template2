@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Pipeline with CloudFormation Deploy Stage'
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Description: 'GitHub repository URL (e.g., https://github.com/username/repo)'
+  GitHubBranch:
+    Type: String
+    Default: 'main'
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: 'GitHub OAuth token'
+  EC2KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: 'EC2 Key Pair for instances'
+
+Resources:
+  # S3 Bucket for Pipeline Artifacts
+  ArtifactStoreBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  # Pipeline IAM Role
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [codepipeline.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: PipelinePermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # S3 permissions for artifacts
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub '${ArtifactStoreBucket.Arn}/*'
+              # CloudFormation permissions
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:CreateStack'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:Describe*'
+                Resource: '*'
+              # Additional permissions (EC2, IAM, etc.)
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                  - 'ec2:*'
+                Resource: '*'
+
+  # Build Project (if needed)
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: JavaAppBuild
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: GITHUB
+        Location: !Ref GitHubRepo
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                java: corretto11
+            build:
+              commands:
+                - mvn clean package
+          artifacts:
+            files:
+              - 'target/*.jar'
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+
+  # Pipeline Definition
+  AppPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: JavaAppPipeline
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreBucket
+      Stages:
+        # Source Stage (GitHub)
+        - Name: Source
+          Actions:
+            - Name: GitHubSource
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: '1'
+              Configuration:
+                Owner: !Select [3, !Split ['/', !Ref GitHubRepo]]
+                Repo: !Select [4, !Split ['/', !Ref GitHubRepo]]
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: SourceArtifact
+
+        # Build Stage (optional)
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+
+        # Deploy Stage (CloudFormation)
+        - Name: Deploy
+          Actions:
+            - Name: CloudFormationDeploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                # Mode can be CREATE_UPDATE or REPLACE_ON_FAILURE
+                ActionMode: CREATE_UPDATE
+                # Name of the stack to create/update
+                StackName: MyJavaAppStack
+                # Template file from source artifacts
+                TemplatePath: SourceArtifact::templates/ec2-template.yaml
+                # Parameters (optional)
+                ParameterOverrides: |
+                  {
+                    "KeyName": {"Ref": "EC2KeyName"},
+                    "InstanceType": "t2.micro"
+                  }
+                # IAM Capabilities (required if creating IAM resources)
+                Capabilities: CAPABILITY_IAM
+                # Role ARN for CloudFormation to use (optional)
+                RoleArn: !GetAtt CloudFormationRole.Arn
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+
+  # CloudFormation Service Role (for the deploy action)
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [cloudformation.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess  # (Restrict this in production)

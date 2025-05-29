@@ -27,57 +27,56 @@ Parameters:
     Type: String
     Description: S3 bucket to store build artifacts
 
+#  EC2KeyName:
+#    Type: 'AWS::EC2::KeyPair::KeyName'
+#    Description: 'EC2 Key Pair for instances'
 Resources:
+
 #  ### IAM Roles ###
-#  GitHubSourceActionRole:
-#    Type: AWS::IAM::Role
-#    Properties:
-#      RoleName: GitHubSourceActionRole
-#      AssumeRolePolicyDocument:
-#        Version: '2012-10-17'
-#        Statement:
-#          - Effect: Allow
-#            Principal:
-#              Service: codepipeline.amazonaws.com
-#            Action: sts:AssumeRole
-#      Policies:
-#        - PolicyName: GitHubSourcePolicy
-#          PolicyDocument:
-#            Version: '2012-10-17'
-#            Statement:
-#              - Effect: Allow
-#                Action:
-#                  - s3:GetObject
-#                  - s3:PutObject
-#                  - s3:GetObjectVersion
-#                  - s3:GetBucketVersioning
-#                Resource: "*"
 
   CodePipelineRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
               Service: codepipeline.amazonaws.com
-            Action: sts:AssumeRole
+            Action: ['sts:AssumeRole']
       Policies:
         - PolicyName: CodePipelinePolicy
           PolicyDocument:
             Statement:
+              # S3 permissions for artifacts
               - Effect: Allow
                 Action:
-                  - codebuild:*
-                  - s3:*
-                  - cloudformation:*
-                  - iam:PassRole
-                Resource: "*"
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource: '*'
+#                  - !Sub ArtifactBucketName.Arn
+              # CloudFormation permissions
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:CreateStack'
+                  - 'cloudformation:UpdateStack'
+                  - 'cloudformation:DeleteStack'
+                  - 'cloudformation:Describe*'
+                Resource: '*'
+              # Additional permissions (EC2, IAM, etc.)
+              - Effect: Allow
+                Action:
+                  - 'iam:PassRole'
+                  - 'ec2:*'
+                  - 'codebuild:*'
+                Resource: '*'
 
   CodeBuildRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
@@ -89,9 +88,17 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:*
-                  - logs:*
-                Resource: "*"
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                Resource: [ '*' ]
+              - Effect: Allow
+                Action:
+                  - 'ec2:Describe*'
+                Resource: [ '*' ]
 
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -101,8 +108,11 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: codedeploy.amazonaws.com
+              Service: cloudformation.amazonaws.com
             Action: sts:AssumeRole
+#      ManagedPolicyArns:
+#        - arn:aws:iam::aws:policy/AdministratorAccess  # (Restrict this in production)
+#      Path: /
       Policies:
         - PolicyName: CodeDeployPermissions
           PolicyDocument:
@@ -110,10 +120,18 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ec2:Describe*
-                  - s3:Get*
-                  - codedeploy:*
-                  - cloudwatch:*
+                  - 'ec2:Describe*'
+                  - 'autoscaling:CompleteLifecycleAction'
+                  - 'autoscaling:DeleteLifecycleHook'
+                  - 'autoscaling:DescribeLifecycleHooks'
+                  - 'autoscaling:DescribeAutoScalingGroups'
+                  - 'autoscaling:PutLifecycleHook'
+                  - 'autoscaling:RecordLifecycleActionHeartbeat'
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeInstanceStatus'
+                  - 'tag:GetTags'
+                  - 'tag:GetResources'
+                  - 'sns:Publish'
                 Resource: "*"
   ### CodeBuild Project ###
 
@@ -140,6 +158,7 @@ Resources:
   JavaAppPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
+      Name: JavaAppPipeline
       RoleArn: !GetAtt CodePipelineRole.Arn
       ArtifactStore:
         Type: S3
@@ -184,7 +203,6 @@ Resources:
                 Version: 1
               InputArtifacts:
                 - Name: BuildOutput
-#              RoleArn: !GetAtt CodeDeployServiceRole.Arn
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: JavaAppStack
@@ -196,6 +214,8 @@ Resources:
                     "KeyName": "${KeyName}",
                     "ArtifactBucketName": "${ArtifactBucketName}"
                   }
+              RunOrder: 1
+
 
 Outputs:
   PipelineName:

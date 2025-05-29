@@ -10,6 +10,10 @@ Parameters:
     Description: S3 bucket containing the Java app war
     Type: String
 
+#  EC2Arn:
+#    Description: EC2 instance ARN
+#    Type: String
+
 Resources:
   AppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
